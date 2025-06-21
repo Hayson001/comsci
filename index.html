@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comprehensive Computer Science Assessment</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chosen Palette: Calm Harmony Neutrals -->
+    <!-- Application Structure Plan: The SPA is designed as a single-page interactive quiz. The user progresses sequentially through 50 questions, one per screen. This linear flow is ideal for an assessment, preventing distraction and focusing the user on one problem at a time. After completion, a results screen provides immediate feedback on the score. An optional, detailed review section is included to reinforce learning by showing the user's answers, the correct answers, and explanations for each question. This structure directly supports the goal of assessment and learning based on the provided course materials. -->
+    <!-- Visualization & Content Choices: Content is presented as a series of questions with multiple-choice answers (radio buttons). Goal: Assess knowledge. Method: Interactive quiz flow. Interaction: User selects an answer and clicks 'Next' to progress. For Python questions, code snippets are displayed in formatted blocks to simulate the quiz environment from the source PDFs. There are no data charts, so Chart.js is not needed. The focus is on textual and logical presentation. Justification: This format directly mirrors the source PDF quizzes, providing a familiar and effective assessment experience for the user. It is the best way to test knowledge on diverse topics like hardware concepts, cybersecurity principles, and Python code interpretation within a single application. Library/Method: Vanilla JavaScript for quiz logic, Tailwind CSS for styling. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            background-color: #F8F7F4;
+            color: #3D3D3D;
+            font-family: 'Inter', sans-serif;
+        }
+        .quiz-container {
+            transition: opacity 0.5s ease-in-out;
+        }
+        .code-block {
+            background-color: #2d2d2d;
+            color: #f8f8f2;
+            font-family: 'Courier New', Courier, monospace;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            overflow-x: auto;
+            white-space: pre;
+            margin-top: 1rem;
+        }
+        .option-label {
+            display: block;
+            padding: 1rem;
+            border: 2px solid #E0E0E0;
+            border-radius: 0.5rem;
+            margin-bottom: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+        }
+        .option-label:hover {
+            border-color: #5F9EA0;
+            background-color: #f0f7f7;
+        }
+        input[type="radio"]:checked + .option-label {
+            border-color: #5F9EA0;
+            background-color: #e0f0f1;
+            box-shadow: 0 0 0 2px #5F9EA0;
+        }
+        input[type="radio"]:disabled + .option-label {
+            cursor: not-allowed;
+            background-color: #f9fafb;
+        }
+        .option-correct {
+            border-color: #16a34a !important;
+            background-color: #f0fdf4 !important;
+        }
+        .option-incorrect {
+            border-color: #dc2626 !important;
+            background-color: #fef2f2 !important;
+        }
+        .option-actual-correct {
+            border-color: #16a34a !important;
+            background-color: #f0fdf4 !important;
+            box-shadow: 0 0 0 2px #16a34a;
+        }
+        .progress-bar-inner {
+            transition: width 0.3s ease-in-out;
+        }
+        .explanation-box {
+            background-color: #f8f9fa;
+            border-left: 4px solid #5F9EA0;
+            padding: 1rem;
+            margin-top: 1.5rem;
+            border-radius: 0.25rem;
+        }
+        .review-question-block {
+             background-color: white;
+             padding: 1.5rem;
+             border-radius: 0.75rem;
+             margin-bottom: 1rem;
+             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+    </style>
+    <link rel="stylesheet" href="https://rsms.me/inter/inter.css">
+</head>
+<body class="antialiased">
+    <div id="app" class="container mx-auto p-4 sm:p-6 md:p-8 max-w-4xl">
+        <header class="mb-6 flex justify-between items-start">
+            <div>
+                <h1 class="text-2xl md:text-3xl font-bold text-gray-800 text-left">Computer Science Assessment</h1>
+                <p class="text-gray-600 mt-1 text-left">Test your knowledge with randomized questions.</p>
+            </div>
+            <div class="text-right">
+                 <div id="timer" class="text-xl font-bold text-gray-700">02:00:00</div>
+                 <button id="restart-btn" class="bg-gray-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-gray-700 transition-colors mt-2">Restart</button>
+            </div>
+        </header>
+
+        <div id="quiz-area">
+            <div id="progress-container" class="w-full bg-gray-200 rounded-full h-4 mb-6">
+                <div id="progress-bar" class="bg-teal-600 h-4 rounded-full progress-bar-inner" style="width: 0%"></div>
+            </div>
+            <p id="progress-text" class="text-center text-sm text-gray-500 mb-4">Question 1 of 50</p>
+            
+            <div id="quiz-container" class="bg-white p-6 sm:p-8 rounded-xl shadow-lg quiz-container">
+                <!-- Quiz content will be injected here -->
+            </div>
+        </div>
+
+        <div id="results-area" class="hidden text-center bg-white p-8 rounded-xl shadow-lg">
+            <h2 class="text-3xl font-bold mb-4">Assessment Complete!</h2>
+            <p class="text-xl mb-2">Your Score:</p>
+            <p id="score-text" class="text-5xl font-bold text-teal-600 mb-6">0 / 50</p>
+            <div class="flex justify-center gap-x-8 mb-6 text-lg">
+                <div>
+                    <span class="font-bold text-green-600" id="correct-answers">0</span>
+                    <span class="text-gray-600">Correct</span>
+                </div>
+                <div>
+                    <span class="font-bold text-red-600" id="incorrect-answers">0</span>
+                    <span class="text-gray-600">Incorrect</span>
+                </div>
+            </div>
+            <p id="score-percentage" class="text-lg text-gray-700 mb-6"></p>
+            <button id="review-btn" class="bg-teal-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-teal-700 transition-colors">Review Answers</button>
+            <p class="text-gray-600 mt-4">Click "Restart" in the header to try again.</p>
+        </div>
+
+        <div id="review-area" class="hidden mt-8">
+             <h2 class="text-2xl font-bold text-center mb-6">Answer Review</h2>
+             <div id="review-content" class="space-y-4">
+                <!-- Review content will be injected here -->
+             </div>
+        </div>
+    </div>
+
+    <script>
+        const quizData = [
+            // General CS - Hardware & Architecture (10 Qs)
+            { question: "A graphic designer is rendering a complex 3D model. The process is taking a long time. To improve performance specifically for rendering tasks, which hardware component upgrade would likely provide the most significant benefit?", type: "General", options: ["A faster Solid-State Drive (SSD)", "More Random Access Memory (RAM)", "A more powerful Graphics Processing Unit (GPU)", "A larger power supply unit"], correct: 2, explanation: "A GPU is specialized hardware designed to accelerate the creation and rendering of images, videos, and 3D models. While RAM and SSD speed are important, the GPU is the most critical component for rendering performance." },
+            { question: "What is the correct sequence of the four-step machine cycle performed by the CPU?", type: "General", options: ["Decode, Fetch, Execute, Store", "Fetch, Decode, Execute, Store", "Fetch, Execute, Decode, Store", "Execute, Decode, Fetch, Store"], correct: 1, explanation: "The CPU machine cycle follows a strict order: 1. Fetch the instruction from memory, 2. Decode the instruction, 3. Execute the command, 4. Store the result." },
+            { question: "A user notices their computer becomes very slow when they have many applications and browser tabs open simultaneously. What is the most likely bottleneck causing this slowdown?", type: "General", options: ["Insufficient RAM", "A slow Hard Disk Drive (HDD)", "An overheating CPU", "A weak Graphics Card"], correct: 0, explanation: "RAM holds active applications and data. When RAM is full, the system starts using the much slower storage drive as 'virtual memory', causing a significant performance drop. This is a classic symptom of insufficient RAM." },
+            { question: "The internal circuitry of a computer represents data using on/off electrical states. What is this type of signal called?", type: "General", options: ["Analog signal", "Decimal signal", "Digital signal", "Wave signal"], correct: 2, explanation: "Digital signals represent data as a sequence of discrete values (0s and 1s), which corresponds to the on/off states of transistors in a computer's circuitry." },
+            { question: "A hospital uses a large, powerful computer to manage patient records and process data from thousands of terminals across its network. How would this type of computer be classified?", type: "General", options: ["Microcomputer", "Minicomputer", "Mainframe computer", "Supercomputer"], correct: 2, explanation: "Mainframe computers are powerful machines used by large organizations for critical applications, bulk data processing, and supporting thousands of users simultaneously." },
+            { question: "How many bits are in one byte?", type: "General", options: ["1", "8", "16", "1024"], correct: 1, explanation: "A byte is a standard unit of digital information that consists of 8 bits." },
+            { question: "A user is told their internet connection speed is 100 megabits per second (Mbps), but a file they download is measured in megabytes (MB). If they download a 50 MB file, how many megabits is this equivalent to?", type: "General", options: ["50 megabits", "12.5 megabits", "400 megabits", "800 megabits"], correct: 2, explanation: "Since 1 Byte = 8 bits, you multiply the number of megabytes by 8 to get the number of megabits. 50 MB * 8 = 400 megabits." },
+            { question: "Which component is responsible for interpreting instructions and telling the other parts of the computer what to do?", type: "General", options: ["Arithmetic Logic Unit (ALU)", "Random Access Memory (RAM)", "Control Unit (CU)", "Hard Disk Drive (HDD)"], correct: 2, explanation: "The Control Unit (CU) is the component of the CPU that directs and coordinates most of the operations in the computer." },
+            { question: "A user is working on a document. If the computer suddenly loses power, the contents of which component will be erased?", type: "General", options: ["Solid-State Drive (SSD)", "Hard Disk Drive (HDD)", "Random Access Memory (RAM)", "Read-Only Memory (ROM)"], correct: 2, explanation: "RAM is volatile memory, meaning it requires power to maintain the stored information. Any data in RAM is lost when the power is turned off. SSDs and HDDs are non-volatile storage." },
+            { question: "The process of converting a continuous real-world signal (like sound) into a format a computer can understand is done by a(n):", type: "General", options: ["Digital-to-Analog Converter (DAC)", "Central Processing Unit (CPU)", "Analog-to-Digital Converter (ADC)", "Input/Output Controller"], correct: 2, explanation: "An Analog-to-Digital Converter (ADC) is a device that converts a continuous physical quantity (an analog signal) into a digital number that represents the quantity's amplitude." },
+            
+            { question: "Which of the following is an example of System Software?", type: "General", options: ["Microsoft Excel", "Google Chrome", "Adobe Photoshop", "Windows 11 Operating System"], correct: 3, explanation: "System software, like an operating system, manages the computer hardware and provides a platform for application software to run. The others are application software designed for specific user tasks." },
+            { question: "A user installs a 'disk cleanup' program that helps organize files and remove temporary data. How would this program best be classified?", type: "General", options: ["Application Software", "System Software", "Utility Software", "Firmware"], correct: 2, explanation: "Utility software is a type of system software designed to help analyze, configure, optimize or maintain a computer. It assists the OS in managing hardware and software." },
+            { question: "What is the decimal equivalent of the binary number 1011?", type: "General", options: ["9", "10", "11", "13"], correct: 2, explanation: "In binary, from right to left, the places are 1, 2, 4, 8. So, (1*8) + (0*4) + (1*2) + (1*1) = 8 + 0 + 2 + 1 = 11." },
+            { question: "Using ASCII encoding, letters are stored sequentially. If the letter 'A' is represented by the decimal number 65, what would be the decimal representation for the letter 'E'?", type: "General", options: ["68", "69", "70", "71"], correct: 1, explanation: "'E' is the 5th letter, and 'A' is the 1st. The sequence is A=65, B=66, C=67, D=68, E=69." },
+            { question: "Which logical operator returns `True` only if both of its operands are `True`?", type: "General", options: ["OR", "AND", "NOT", "XOR"], correct: 1, explanation: "The AND operator evaluates to True only when all conditions it connects are true." },
+            { question: "Evaluate the following logical expression: `(10 > 5) AND NOT (3 == 3)`", type: "General", options: ["True", "False", "Error", "1"], correct: 1, explanation: "`10 > 5` is True. `3 == 3` is True. `NOT (True)` is False. The expression becomes `True AND False`, which evaluates to False." },
+            { question: "In Python, what is the purpose of an IDE like PyCharm?", type: "General", options: ["It is the operating system for Python programs.", "It is a hardware component required to run Python.", "It is application software that provides comprehensive facilities for software development.", "It is a type of computer virus written in Python."], correct: 2, explanation: "An Integrated Development Environment (IDE) like PyCharm is an application that combines a source code editor, build automation tools, and a debugger to make programming easier." },
+            { question: "A computer can only function if it has both _______ and ______.", type: "General", options: ["The Internet, a CPU", "Hardware, Software", "A keyboard, a mouse", "An operating system, a web browser"], correct: 1, explanation: "A computer system is a combination of hardware components (the physical parts) and software (the instructions that tell the hardware what to do). Both are essential for it to function." },
+            
+            { question: "An attacker sends an email that looks like it's from a legitimate bank, tricking the user into clicking a link and entering their credentials on a fake website. What is this type of attack called?", type: "General", options: ["Denial-of-Service (DoS)", "Phishing", "Spyware", "A Worm"], correct: 1, explanation: "Phishing is a social engineering attack where attackers deceive people into revealing sensitive information, such as login credentials or credit card numbers, by masquerading as a trustworthy entity." },
+            { question: "What is the primary difference between symmetric-key and asymmetric-key (public-key) cryptography?", type: "General", options: ["Symmetric is for encrypting text, asymmetric is for numbers.", "Symmetric is faster but less secure.", "Symmetric uses a single shared key for both encryption and decryption, while asymmetric uses a pair of keys (public and private).", "Symmetric is a new technology, while asymmetric is outdated."], correct: 2, explanation: "The defining characteristic of symmetric encryption is the use of a single, shared secret key. Asymmetric (or public-key) cryptography uses a public key to encrypt and a private key to decrypt." },
+            { question: "To send a confidential message to a colleague, you use their public key to encrypt the message. What key must they use to decrypt it?", type: "General", options: ["Your public key", "Your private key", "Their public key", "Their private key"], correct: 3, explanation: "In asymmetric encryption for confidentiality, a message encrypted with a public key can only be decrypted by the corresponding private key." },
+            { question: "You want to prove to others that a file you are sending genuinely came from you and has not been altered. You create a digital signature for the file. Which key do you use to create this signature?", type: "General", options: ["The recipient's public key", "Your private key", "A symmetric key", "The recipient's private key"], correct: 1, explanation: "A digital signature is created using the sender's private key. This provides authenticity (proves it's from you) and integrity (proves it wasn't changed), as only you have access to your private key." },
+            { question: "A piece of malware infects a computer and automatically spreads to other computers on the same network by exploiting a security vulnerability, without any user interaction. This malware is best described as a:", type: "General", options: ["Trojan Horse", "Virus", "Worm", "Spyware"], correct: 2, explanation: "A worm is a standalone malware that replicates itself to spread to other computers, often using a computer network to spread itself." },
+            { question: "An AI system designed to play chess at a grandmaster level, but which cannot perform any other task, is an example of:", type: "General", options: ["Strong AI", "Artificial General Intelligence (AGI)", "Weak AI (Narrow AI)", "Conscious AI"], correct: 2, explanation: "Weak AI, also known as Narrow AI, is focused on performing a single, specific task. Strong AI or AGI would have human-like general cognitive abilities." },
+            { question: "The network of physical devices, vehicles, home appliances, and other items embedded with electronics, software, and sensors that enables these objects to connect and exchange data is known as:", type: "General", options: ["Cloud Computing", "Big Data", "The Internet of Things (IoT)", "Artificial Intelligence"], correct: 2, explanation: "The Internet of Things (IoT) describes the network of physical objects that are embedded with sensors and other technologies for the purpose of connecting and exchanging data over the internet." },
+            { question: "A malicious actor overwhelms a company's web server with millions of requests from a network of compromised computers, making the website unavailable for legitimate users. This is a _______ attack.", type: "General", options: ["Phishing", "Spyware", "Distributed Denial-of-Service (DDoS)", "Trojan"], correct: 2, explanation: "A Distributed Denial-of-Service (DDoS) attack uses multiple compromised computer systems to flood a target with traffic, making it unavailable. It's 'distributed' because the attack comes from many sources." },
+            { question: "What is the primary function of Ransomware?", type: "General", options: ["To steal personal information for identity theft.", "To secretly monitor user activity.", "To encrypt a victim's files and demand payment for the decryption key.", "To replicate and spread to as many computers as possible."], correct: 2, explanation: "Ransomware is a type of malware that encrypts a victim's files, rendering them inaccessible, and then demands a ransom payment to restore access." },
+            { question: "A factory implements a system where machinery can predict its own maintenance needs and adjust its operations in real-time based on data from sensors. This is a key concept of:", type: "General", options: ["Cybersecurity", "Digital Marketing", "Industry 4.0", "E-commerce"], correct: 2, explanation: "Industry 4.0 refers to the fourth industrial revolution, characterized by the integration of smart technologies like IoT, AI, and real-time data into manufacturing and industrial processes." },
+            { question: "Which statement best describes a Trojan Horse?", type: "General", options: ["It's a program that attaches itself to other files and replicates.", "It's malware disguised as a legitimate program.", "It's a hardware device for hacking.", "It's a security protocol to protect networks."], correct: 1, explanation: "A Trojan horse is a type of malware that is often disguised as legitimate software. Trojans do not replicate on their own but can be very destructive." },
+            { question: "What is Digital Transformation?", type: "General", options: ["The process of converting paper documents to digital files.", "Creating a company website.", "The fundamental change in how an organization operates and delivers value by integrating digital technology into all areas of the business.", "Switching from email to a chat application."], correct: 2, explanation: "Digital Transformation is a broad, strategic overhaul of business activities, processes, competencies, and models to fully leverage the changes and opportunities of digital technologies." },
+            
+            { question: "What is the output of the following Python code?", type: "Python", code: 'print(10 // 3 * 3 + 10 % 3)', options: ["9", "10", "11", "12"], correct: 1, explanation: "First, `10 // 3` (floor division) is 3. Then `10 % 3` (modulo) is 1. The expression becomes `3 * 3 + 1`, which evaluates to `9 + 1`, giving 10." },
+            { question: "Which data type in Python is an ordered, immutable collection of elements?", type: "Python", options: ["List", "Dictionary", "Set", "Tuple"], correct: 3, explanation: "A tuple is an ordered collection of elements, and it is immutable, meaning its contents cannot be changed after creation." },
+            { question: "What will be printed to the console?", type: "Python", code: 'x = 5\ny = "5"\nprint(str(x) + y)', options: ["10", "55", "Error", "5 5"], correct: 1, explanation: "`str(x)` converts the integer 5 to the string '5'. The `+` operator then performs string concatenation, joining '5' and '5' to make '55'." },
+            { question: "What is the primary characteristic of a Python set?", type: "Python", options: ["It stores elements in a fixed order.", "It allows duplicate elements.", "It stores an unordered collection of unique elements.", "It uses key-value pairs."], correct: 2, explanation: "Sets are unordered collections that do not allow duplicate elements. This makes them useful for tasks like finding unique items in a list." },
+            { question: "What is the output of this code?", type: "Python", code: 'my_dict = {"name": "John", "age": 30}\nprint(my_dict.get("city", "Not Found"))', options: ["John", "Error", "None", "Not Found"], correct: 3, explanation: "The `.get()` method attempts to retrieve a value for a given key. If the key is not found, it returns the default value provided as the second argument, which is 'Not Found' in this case." },
+            { question: "Analyze the following code. What is the final value of `result`?", type: "Python", code: 'a = True\nb = False\nc = False\nresult = a or b and not c', options: ["True", "False", "Error", "None"], correct: 0, explanation: "Due to operator precedence, `not c` is evaluated first (not False -> True). Then `b and True` is evaluated (False and True -> False). Finally, `a or False` is evaluated (True or False -> True)." },
+            { question: "What is the output of the following script?", type: "Python", code: 'numbers = [1, 2, 3]\nnumbers.append([4, 5])\nprint(len(numbers))', options: ["3", "4", "5", "Error"], correct: 1, explanation: "The `.append()` method adds its argument as a single element to the list. Here, it adds the list `[4, 5]` as the fourth element. Therefore, the length of `numbers` becomes 4." },
+            { question: "Which of these lines of code will result in an error?", type: "Python", code: 'my_list = [1, 2, 3]\nmy_tuple = (1, 2, 3)\nmy_set = {1, 2, 3}', options: ["my_list[0] = 5", "my_tuple[0] = 5", "my_set.add(4)", "print(my_list[0])"], correct: 1, explanation: "Tuples are immutable. Attempting to change an element in a tuple by assigning a new value to an index (`my_tuple[0] = 5`) will raise a TypeError." },
+            { question: "What will this code print?", type: "Python", code: 'set1 = {1, 2, 3}\nset2 = {3, 4, 5}\nprint(set1 - set2)', options: ["{1, 2}", "{4, 5}", "{3}", "{1, 2, 4, 5}"], correct: 0, explanation: "The `-` operator for sets performs a set difference. It returns a new set containing elements that are in the first set but not in the second set. In this case, it's `{1, 2}`." },
+            { question: "What data type would the variable `result` have after this operation?", type: "Python", code: 'a = 15\nb = 4.0\nresult = a / b', options: ["&lt;class 'int'&gt;", "&lt;class 'float'&gt;", "&lt;class 'str'&gt;", "&lt;class 'tuple'&gt;"], correct: 1, explanation: "Standard division (`/`) in Python 3 always results in a float, regardless of the input types, to ensure precision. 15 / 4.0 results in 3.75, which is a float." },
+            { question: "What does the following code output?", type: "Python", code: 'x = 0\nif x > 0:\n    print("A")\nelif x == 0:\n    print("B")\nelse:\n    print("C")', options: ["A", "B", "C", "Nothing is printed"], correct: 1, explanation: "The code checks the conditions sequentially. `x > 0` is false. The next condition, `x == 0`, is true, so its block is executed, printing 'B'. The `else` block is then skipped." },
+            { question: "Which of the following creates a dictionary in Python?", type: "Python", options: ["['name', 'John']", "('name', 'John')", "{'name': 'John'}", "{'name', 'John'}"], correct: 2, explanation: "Dictionaries are created using curly braces `{}` and consist of key-value pairs separated by a colon." },
+            { question: "What is the output of this code?", type: "Python", code: 'print("Hello"[1:4])', options: ["ell", "ello", "Hel", "H"], correct: 0, explanation: "This is string slicing. It extracts a portion of the string starting from index 1 up to (but not including) index 4. The characters at indices 1, 2, and 3 are 'e', 'l', 'l'." },
+            { question: "What will be printed?", type: "Python", code: 'my_list = [10, 20, 30, 40]\nprint(my_list[-1])', options: ["10", "40", "Error", "Nothing"], correct: 1, explanation: "Negative indexing in Python allows you to access elements from the end of a sequence. An index of -1 refers to the last element, which is 40." },
+            { question: "What will the following code output?", type: "Python", code: 'a = 2\nb = 3\nprint(f"The result is {a ** b}")', options: ["The result is 6", "The result is 8", "The result is {a ** b}", "The result is 5"], correct: 1, explanation: "This uses an f-string for formatting. The expression inside the curly braces `{a ** b}` is evaluated first. `2 ** 3` is 8. The value 8 is then inserted into the string." },
+
+            { question: "What is the primary goal of a Business Intelligence (BI) tool like Power BI?", type: "PowerBI", options: ["To write and execute Python code.", "To build and host websites.", "To transform raw data into actionable insights through visualization and analysis.", "To securely store company passwords and credentials."], correct: 2, explanation: "The core purpose of BI is to help organizations make better, data-driven decisions by collecting, analyzing, and visualizing business data." },
+            { question: "An analyst builds a report in the Power BI Desktop application. To share this interactive report with colleagues so they can view it in a web browser, the analyst must publish it to the ________.", type: "PowerBI", options: ["Power BI Service", "Power BI Mobile App", "Microsoft Excel", "A shared network drive"], correct: 0, explanation: "Power BI Desktop is for authoring reports. The Power BI Service is the cloud-based platform for sharing, collaborating, and viewing those reports." },
+            { question: "In a Power BI report, a user clicks on a bar in a chart, and all other visuals on the page automatically filter to show data related only to that selected bar. What is this core feature called?", type: "PowerBI", options: ["Data Modeling", "Cross-filtering and Highlighting", "Query Editing", "Static Reporting"], correct: 1, explanation: "This interactivity, where selections in one visual affect others, is called cross-filtering or cross-highlighting. It's a key feature for exploring data relationships." },
+            { question: "A user wants to give report viewers an easy way to filter the entire report page by product category or year. Which Power BI visual element is specifically designed for this purpose?", type: "PowerBI", options: ["Card", "Table", "Slicer", "Map"], correct: 2, explanation: "A slicer is an on-canvas filter that provides buttons or lists that users can click to easily filter the data shown in other visuals on the report page." },
+            { question: "Before creating any visuals in Power BI, data must be imported from a source (e.g., an Excel file). What is this underlying collection of tables and data called within Power BI?", type: "PowerBI", options: ["A Dashboard", "A Report", "A Semantic Model (or Dataset)", "A Power Query"], correct: 2, explanation: "The data you import and model in Power BI is called a Semantic Model (formerly known as a Dataset). This model is the source for all reports and visuals you create." }
+        ];
+
+        let currentQuestionIndex = 0;
+        let userScore = 0;
+        let userAnswers = {};
+        let shuffledQuizData = [];
+        let timerInterval = null;
+        let quizTimeout = null;
+
+        const quizContainer = document.getElementById('quiz-container');
+        const resultsArea = document.getElementById('results-area');
+        const quizArea = document.getElementById('quiz-area');
+        const progressBar = document.getElementById('progress-bar');
+        const progressText = document.getElementById('progress-text');
+        const restartBtn = document.getElementById('restart-btn');
+        const reviewBtn = document.getElementById('review-btn');
+        const reviewArea = document.getElementById('review-area');
+        const timerDisplay = document.getElementById('timer');
+
+        function shuffleArray(array) {
+            let newArray = [...array];
+            for (let i = newArray.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+            }
+            return newArray;
+        }
+
+        function displayQuestion() {
+            const questionData = shuffledQuizData[currentQuestionIndex];
+            const isAnswered = userAnswers[currentQuestionIndex] !== undefined;
+
+            let optionsHtml = '';
+            questionData.options.forEach((option, index) => {
+                let optionClass = '';
+                const userAnswer = isAnswered ? userAnswers[currentQuestionIndex].selected : -1;
+                const isCorrect = userAnswer === questionData.correct;
+
+                if (isAnswered) {
+                    if (index === userAnswer && isCorrect) {
+                        optionClass = 'option-correct';
+                    } else if (index === userAnswer && !isCorrect) {
+                        optionClass = 'option-incorrect';
+                    } else if (index === questionData.correct) {
+                        optionClass = 'option-actual-correct';
+                    }
+                }
+
+                optionsHtml += `
+                    <div>
+                        <input type="radio" name="option" value="${index}" id="option${index}" class="sr-only" ${isAnswered ? 'disabled' : ''} ${index === userAnswer ? 'checked' : ''}>
+                        <label for="option${index}" class="option-label ${optionClass}">
+                            <span class="font-medium">${option}</span>
+                        </label>
+                    </div>
+                `;
+            });
+            
+            let codeControlsHtml = '';
+            if (questionData.type === 'Python' && questionData.code) {
+                 codeControlsHtml = `
+                    <div class="mt-2 mb-4 flex items-center gap-x-4">
+                        <button onclick="copyCode(this)" class="text-sm bg-gray-200 hover:bg-gray-300 text-gray-800 py-1 px-3 rounded-md transition-colors">Copy Code</button>
+                        <a href="https://www.programiz.com/python-programming/online-compiler/" target="_blank" class="text-sm bg-blue-100 hover:bg-blue-200 text-blue-800 py-1 px-3 rounded-md transition-colors">Run in Online Compiler</a>
+                    </div>
+                `;
+            }
+
+            let codeBlockHtml = questionData.code ? `<div class="code-block">${questionData.code}</div>${codeControlsHtml}` : '';
+            
+            let explanationHtml = isAnswered ? `<div class="explanation-box"><p class="font-semibold">Explanation:</p><p class="mt-1">${questionData.explanation}</p></div>` : '';
+
+            let buttonsHtml = '<div class="mt-8 flex justify-between items-center">';
+            buttonsHtml += `<button id="prev-btn" class="bg-gray-200 text-gray-700 font-bold py-3 px-6 rounded-lg hover:bg-gray-300 transition-colors ${currentQuestionIndex === 0 ? 'invisible' : ''}">Previous</button>`;
+            
+            if (isAnswered) {
+                if (currentQuestionIndex < shuffledQuizData.length - 1) {
+                    buttonsHtml += `<button id="next-btn" class="bg-teal-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-teal-700 transition-colors">Next</button>`;
+                } else {
+                    buttonsHtml += `<button id="finish-btn" class="bg-blue-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-blue-700 transition-colors">Finish Quiz</button>`;
+                }
+            } else {
+                buttonsHtml += `<button id="check-btn" class="bg-teal-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-teal-700 transition-colors" disabled>Check</button>`;
+            }
+            buttonsHtml += '</div>';
+
+            quizContainer.innerHTML = `
+                <h2 class="text-xl md:text-2xl font-semibold mb-2">${currentQuestionIndex + 1}. ${questionData.question}</h2>
+                ${codeBlockHtml}
+                <div class="options-container space-y-3 mt-4">${optionsHtml}</div>
+                ${explanationHtml}
+                ${buttonsHtml}
+            `;
+            
+            quizContainer.style.opacity = '0';
+            setTimeout(() => { quizContainer.style.opacity = '1'; }, 50);
+
+            addEventListeners();
+        }
+        
+        window.copyCode = function(button) {
+            const codeBlock = button.parentElement.previousElementSibling;
+            const code = codeBlock.innerText;
+            const textarea = document.createElement('textarea');
+            textarea.value = code;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            button.innerText = 'Copied!';
+            setTimeout(() => { button.innerText = 'Copy Code'; }, 2000);
+        }
+
+        function addEventListeners() {
+            document.querySelectorAll('input[name="option"]').forEach(radio => {
+                radio.addEventListener('change', () => {
+                    const checkBtn = document.getElementById('check-btn');
+                    if (checkBtn) checkBtn.disabled = false;
+                });
+            });
+
+            const prevBtn = document.getElementById('prev-btn');
+            if (prevBtn) prevBtn.addEventListener('click', handlePrev);
+            
+            const checkBtn = document.getElementById('check-btn');
+            if (checkBtn) checkBtn.addEventListener('click', handleCheck);
+
+            const nextBtn = document.getElementById('next-btn');
+            if (nextBtn) nextBtn.addEventListener('click', handleNext);
+
+            const finishBtn = document.getElementById('finish-btn');
+            if (finishBtn) finishBtn.addEventListener('click', showResults);
+        }
+        
+        function handleCheck() {
+            const selectedOption = document.querySelector('input[name="option"]:checked');
+            if (!selectedOption) return;
+            
+            const answer = parseInt(selectedOption.value);
+            if (userAnswers[currentQuestionIndex] === undefined) {
+                userAnswers[currentQuestionIndex] = { selected: answer };
+                if (answer === shuffledQuizData[currentQuestionIndex].correct) {
+                    userScore++;
+                }
+            }
+            
+            updateProgress();
+            displayQuestion();
+        }
+
+        function handleNext() {
+            if (currentQuestionIndex < shuffledQuizData.length - 1) {
+                currentQuestionIndex++;
+                updateProgress();
+                displayQuestion();
+            }
+        }
+
+        function handlePrev() {
+            if (currentQuestionIndex > 0) {
+                currentQuestionIndex--;
+                updateProgress();
+                displayQuestion();
+            }
+        }
+
+        function updateProgress() {
+            const answeredCount = Object.keys(userAnswers).length;
+            const progressPercentage = (answeredCount / shuffledQuizData.length) * 100;
+            progressBar.style.width = `${progressPercentage}%`;
+            progressText.textContent = `Question ${currentQuestionIndex + 1} of ${shuffledQuizData.length}`;
+        }
+
+        function showResults() {
+            // Stop the timer
+            clearInterval(timerInterval);
+            clearTimeout(quizTimeout);
+
+            quizArea.classList.add('hidden');
+            resultsArea.classList.remove('hidden');
+            
+            const totalQuestions = shuffledQuizData.length;
+            const correctCount = userScore;
+            const incorrectCount = totalQuestions - Object.keys(userAnswers).length + (Object.keys(userAnswers).length - correctCount);
+
+            const percentage = totalQuestions > 0 ? ((correctCount / totalQuestions) * 100).toFixed(1) : 0;
+            
+            document.getElementById('score-text').textContent = `${correctCount} / ${totalQuestions}`;
+            document.getElementById('correct-answers').textContent = correctCount;
+            document.getElementById('incorrect-answers').textContent = incorrectCount;
+            document.getElementById('score-percentage').textContent = `That's ${percentage}%!`;
+        }
+        
+        function toggleReview() {
+            const isHidden = reviewArea.classList.contains('hidden');
+            if (isHidden) {
+                let reviewHtml = '';
+                shuffledQuizData.forEach((questionData, index) => {
+                    const userAnswerData = userAnswers[index];
+                    const isAnswered = userAnswerData !== undefined;
+                    const selected = isAnswered ? userAnswerData.selected : -1;
+                    const isCorrect = isAnswered && selected === questionData.correct;
+                    const correctOrIncorrectIcon = isCorrect ? '<span class="text-green-600 font-bold ml-2">✓ Correct</span>' : '<span class="text-red-600 font-bold ml-2">✗ Incorrect</span>';
+                    
+                    let answerText = 'You did not answer this question.';
+                    if (isAnswered) {
+                        answerText = `Your answer: ${questionData.options[selected]}`;
+                    }
+
+                    reviewHtml += `
+                       <div class="review-question-block">
+                          <p class="font-semibold">${index + 1}. ${questionData.question}</p>
+                          <p class="mt-2 text-sm ${isCorrect ? 'text-gray-700' : 'text-red-700'}">${answerText} ${isAnswered ? correctOrIncorrectIcon : ''}</p>
+                           ${!isCorrect ? `<p class="mt-1 text-sm text-green-700">Correct answer: ${questionData.options[questionData.correct]}</p>` : ''}
+                       </div>
+                    `;
+                });
+                document.getElementById('review-content').innerHTML = reviewHtml;
+                reviewArea.classList.remove('hidden');
+                reviewBtn.textContent = 'Hide Review';
+            } else {
+                reviewArea.classList.add('hidden');
+                reviewBtn.textContent = 'Review Answers';
+            }
+        }
+
+        function startTimer(duration) {
+            let timer = duration;
+            let hours, minutes, seconds;
+            
+            timerInterval = setInterval(function () {
+                hours = parseInt(timer / 3600, 10);
+                minutes = parseInt((timer % 3600) / 60, 10);
+                seconds = parseInt(timer % 60, 10);
+
+                hours = hours < 10 ? "0" + hours : hours;
+                minutes = minutes < 10 ? "0" + minutes : minutes;
+                seconds = seconds < 10 ? "0" + seconds : seconds;
+
+                timerDisplay.textContent = hours + ":" + minutes + ":" + seconds;
+
+                if (--timer < 0) {
+                    showResults();
+                }
+            }, 1000);
+
+            quizTimeout = setTimeout(showResults, duration * 1000);
+        }
+
+        function startQuiz() {
+            shuffledQuizData = shuffleArray(quizData);
+            currentQuestionIndex = 0;
+            userScore = 0;
+            userAnswers = {};
+
+            // Reset UI
+            resultsArea.classList.add('hidden');
+            reviewArea.classList.add('hidden');
+            reviewBtn.textContent = 'Review Answers';
+            quizArea.classList.remove('hidden');
+            
+            // Clear old timers and start new ones
+            clearInterval(timerInterval);
+            clearTimeout(quizTimeout);
+            startTimer(2 * 60 * 60); // 2 hours
+
+            updateProgress();
+            displayQuestion();
+        }
+
+        // --- SCRIPT INITIALIZATION ---
+        restartBtn.addEventListener('click', startQuiz);
+        reviewBtn.addEventListener('click', toggleReview);
+        startQuiz(); // Initial load
+        
+    </script>
+</body>
+</html>
